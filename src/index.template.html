@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Registro</title>
+<meta name="theme-color" content="#111A2B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Registro">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
+<style>
+  html {
+    background:#111A2B;
+    -webkit-text-size-adjust:100%;
+    text-size-adjust:100%;
+    touch-action:manipulation;
+  }
+  body {
+    margin:0; padding:0; background:#111A2B; min-height:100%;
+    overscroll-behavior:none;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #app { min-height:100vh; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* niente zoom con le dita: l'app ha una sola larghezza utile */
+["gesturestart","gesturechange","gestureend"].forEach(function (n) {
+  document.addEventListener(n, function (e) { e.preventDefault(); }, { passive: false });
+});
+</script>
+<script>
+/*__BUNDLE__*/
+</script>
+</body>
+</html>
