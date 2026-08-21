@@ -1015,11 +1015,14 @@ export default function Registro() {
                 </div>
               </div>
               {dati.camminata === true && (
-                <div className="rg-chips" style={{ marginTop: 12 }}>
-                  {[20, 30, 40, 60].map((m) => (
-                    <button key={m} className={"rg-chip" + (dati.minuti === m ? " on" : "")}
-                      onClick={() => aggiorna(giorno, (g) => ({ ...g, minuti: g.minuti === m ? null : m }))}>{m} min</button>
-                  ))}
+                <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 9 }}>
+                  <input className="rg-in ora" type="number" inputMode="numeric" min="0" step="1"
+                    placeholder="minuti" value={dati.minuti ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      aggiorna(giorno, (g) => ({ ...g, minuti: v === "" ? null : Math.max(0, parseInt(v, 10) || 0) }));
+                    }} style={{ width: 90 }} />
+                  <span className="rg-lab">min</span>
                 </div>
               )}
               <div style={{ marginTop: 15, display: "flex", gap: 8 }}>
