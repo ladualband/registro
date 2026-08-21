@@ -43,6 +43,7 @@ const CSS = `
 .rg-day { width:40px; text-align:center; }
 .rg-dcircle { width:33px; height:33px; border-radius:50%; margin:0 auto; display:grid; place-items:center;
   font-size:13.5px; color:var(--ink2); border:1px solid var(--line); }
+.rg-day.pieno .rg-dcircle { background:var(--ok); color:var(--on-acc); border-color:var(--ok); }
 .rg-day.sel .rg-dcircle { background:var(--ink); color:var(--bg); border-color:var(--ink); font-weight:500; }
 .rg-day.futuro { opacity:.32; }
 .rg-bar { height:2px; border-radius:2px; background:var(--line); margin:5px auto 0; width:22px; overflow:hidden; }
@@ -934,7 +935,7 @@ export default function Registro() {
                   const pw = pesate.find((p) => p.data === d);
                   const futuro = d > oggi;
                   return (
-                    <button key={d} className={"rg-day" + (d === giorno ? " sel" : "") + (futuro ? " futuro" : "")}
+                    <button key={d} className={"rg-day" + (d === giorno ? " sel" : "") + (futuro ? " futuro" : "") + (pieno ? " pieno" : "")}
                       disabled={futuro} onClick={() => setGiorno(d)} aria-label={fmtLungo(d)}>
                       <span className="rg-dcircle">{GG1[i]}</span>
                       <span className="rg-bar"><i style={{ width: (pieno ? 100 : (n / 5) * 100) + "%" }} /></span>
