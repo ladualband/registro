@@ -208,6 +208,7 @@ const CARBO = [
   { id: "cereali", label: "Cornflakes o avena" },
   { id: "patate", label: "Patate o mais" },
   { id: "pizza", label: "Pizza" },
+  { id: "barrettalight", label: "Barretta di cereali light" },
   { id: "altro", label: "Altro" },
   { id: "niente", label: "Niente" },
 ];
