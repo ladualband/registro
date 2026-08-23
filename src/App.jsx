@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BarcodeFormat } from "@zxing/library";
 
 /* ============================================================
    REGISTRO
@@ -35,6 +37,7 @@ const CSS = `
 
 .rg-card { background:var(--card); border:1px solid var(--line); border-radius:18px; }
 .rg-card.pad { padding:17px 20px; }
+.rg-card.rg-macro { background:var(--sunk); }
 .rg-lab { font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink2); }
 .rg-lab em { font-style:normal; letter-spacing:.02em; text-transform:none; opacity:.85; }
 .rg-week { padding:15px 16px 13px; margin-top:14px; }
@@ -87,6 +90,14 @@ const CSS = `
 .rg-ta { resize:vertical; min-height:44px; line-height:1.4; }
 .rg-in:focus, .rg-ta:focus { outline:none; border-color:var(--acc); }
 .rg-in.ora { font-family:var(--mono); width:130px; }
+
+.rg-scanrow { display:flex; gap:8px; }
+.rg-scanrow .rg-in { flex:1; }
+.rg-scanbtn { flex:none; width:44px; height:44px; border:1px solid var(--line); border-radius:12px;
+  background:var(--sunk); font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--ink2);
+  display:grid; place-items:center; }
+.rg-scanbox { border-radius:14px; overflow:hidden; background:#000; }
+.rg-video { width:100%; display:block; max-height:60vh; object-fit:cover; }
 
 .rg-pick { display:inline-flex; align-items:center; gap:9px; align-self:flex-start;
   background:var(--sunk); border:1px solid var(--line); border-radius:22px; padding:9px 16px; font-size:14.5px; }
@@ -403,11 +414,83 @@ function Passo({ n, onSet, testo }) {
   );
 }
 
+/* unica chiamata di rete dell'app: traduce un codice a barre nel nome del prodotto via Open Food Facts,
+   inviando solo il codice, niente dati personali. Se fallisce o non trova nulla, resta il codice grezzo. */
+async function cercaProdotto(codice) {
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${codice}.json?fields=product_name,product_name_it,brands`);
+    const j = await r.json();
+    if (j.status !== 1 || !j.product) return null;
+    const nome = j.product.product_name_it || j.product.product_name || "";
+    return [j.product.brands, nome].filter(Boolean).join(" ").trim() || null;
+  } catch (e) { return null; }
+}
+
+/* ---------------- scanner ---------------- */
+
+function Scanner({ onFound, onClose }) {
+  const videoRef = useRef(null);
+  const [errore, setErrore] = useState("");
+
+  useEffect(() => {
+    let attivo = true, controlli = null;
+    const reader = new BrowserMultiFormatReader();
+    reader.decodeFromConstraints(
+      { video: { facingMode: "environment" } },
+      videoRef.current,
+      (risultato, _errore, c) => {
+        controlli = c;
+        if (risultato && attivo) { attivo = false; c.stop(); onFound(risultato.getText(), risultato.getBarcodeFormat()); }
+      }
+    ).catch(() => setErrore("Non riesco ad accedere alla fotocamera."));
+    return () => { attivo = false; if (controlli) controlli.stop(); };
+  }, [onFound]);
+
+  return (
+    <div className="rg-ov" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="rg-modal">
+        <div className="rg-eyebrow">
+          <span className="rg-mark">Scansiona</span>
+          <button className="rg-tool" onClick={onClose}>Chiudi</button>
+        </div>
+        {errore ? <span className="rg-hint">{errore}</span> : (
+          <>
+            <div className="rg-scanbox">
+              <video ref={videoRef} className="rg-video" playsInline muted />
+            </div>
+            <span className="rg-hint">Inquadra il codice a barre o il QR del prodotto.</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- editor ---------------- */
 
 function Editor({ slot, b, setB, salva, elimina, esiste, chiudi }) {
   const set = (p) => setB({ ...b, ...p });
   const puo = b.voto != null;
+  const [scanCampo, setScanCampo] = useState(null);
+  const [cercoProdotto, setCercoProdotto] = useState(false);
+
+  const gestisciScan = async (testo, formato) => {
+    const campo = scanCampo;
+    setScanCampo(null);
+    if (!campo) return;
+    let valore = testo;
+    if (formato !== BarcodeFormat.QR_CODE) {
+      setCercoProdotto(true);
+      const nome = await cercaProdotto(testo);
+      setCercoProdotto(false);
+      if (nome) valore = nome;
+    }
+    setB((bb) => {
+      const attuale = bb[campo].testo;
+      return { ...bb, [campo]: { ...bb[campo], testo: attuale ? attuale + " · " + valore : valore } };
+    });
+  };
+
   return (
     <div className="rg-ed">
       <div className="rg-field">
@@ -420,17 +503,28 @@ function Editor({ slot, b, setB, salva, elimina, esiste, chiudi }) {
         <span className="rg-lab">Carboidrati</span>
         <Scelta titolo="Carboidrati" options={CARBO} value={b.carbo.tipo}
           onChange={(x) => set({ carbo: { ...b.carbo, tipo: x } })} />
-        <input className="rg-in" value={b.carbo.testo} placeholder="Quanto: 4 mestoli, 2 michette, 4 fette"
-          onChange={(e) => set({ carbo: { ...b.carbo, testo: e.target.value } })} />
+        <div className="rg-scanrow">
+          <input className="rg-in" value={b.carbo.testo} placeholder="Quanto: 4 mestoli, 2 michette, 4 fette"
+            onChange={(e) => set({ carbo: { ...b.carbo, testo: e.target.value } })} />
+          <button type="button" className="rg-scanbtn" aria-label="Scansiona codice a barre o QR per i carboidrati"
+            onClick={() => setScanCampo("carbo")}>SCAN</button>
+        </div>
       </div>
 
       <div className="rg-field">
         <span className="rg-lab">Proteine</span>
         <Scelta titolo="Proteine" options={PROT} value={b.prot.tipo}
           onChange={(x) => set({ prot: { ...b.prot, tipo: x } })} />
-        <input className="rg-in" value={b.prot.testo} placeholder="Cosa e quanto"
-          onChange={(e) => set({ prot: { ...b.prot, testo: e.target.value } })} />
+        <div className="rg-scanrow">
+          <input className="rg-in" value={b.prot.testo} placeholder="Cosa e quanto"
+            onChange={(e) => set({ prot: { ...b.prot, testo: e.target.value } })} />
+          <button type="button" className="rg-scanbtn" aria-label="Scansiona codice a barre o QR per le proteine"
+            onClick={() => setScanCampo("prot")}>SCAN</button>
+        </div>
       </div>
+
+      {scanCampo && <Scanner onFound={gestisciScan} onClose={() => setScanCampo(null)} />}
+      {cercoProdotto && <span className="rg-hint">Cerco il prodotto…</span>}
 
       <div className="rg-field">
         <span className="rg-lab">Verdura e frutta <em>(porzioni)</em></span>
@@ -907,8 +1001,7 @@ export default function Registro() {
       <div className="rg-wrap">
 
         <div className="rg-top">
-          <div className="rg-eyebrow">
-            <span className="rg-mark">Registro</span>
+          <div className="rg-eyebrow" style={{ justifyContent: "flex-end" }}>
             <div style={{ display: "flex", gap: 14 }}>
               {salvaMsg && <span className="rg-save">{salvaMsg}</span>}
               <button className="rg-tool" onClick={() => { setEspOpen(true); setEspTutto(false); genera(false, espFlag); }}>Esporta</button>
@@ -953,6 +1046,30 @@ export default function Registro() {
                 : <button className="rg-tool" onClick={() => setGiorno(oggi)}>torna a oggi</button>}
             </div>
 
+            <div className="rg-card pad" style={{ marginTop: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <span className="rg-lab">Camminata</span>
+                <div className="rg-chips">
+                  <button className={"rg-chip" + (dati.camminata === true ? " on" : "")}
+                    onClick={() => aggiorna(giorno, (g) => ({ ...g, camminata: g.camminata === true ? null : true }))}>Sì</button>
+                  <button className={"rg-chip" + (dati.camminata === false ? " on" : "")}
+                    onClick={() => aggiorna(giorno, (g) => ({ ...g, camminata: g.camminata === false ? null : false, minuti: null }))}>No</button>
+                </div>
+              </div>
+              {dati.camminata === true && (
+                <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 9 }}>
+                  <input className="rg-in ora" type="number" inputMode="numeric" min="0" step="1"
+                    placeholder="minuti" value={dati.minuti ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      aggiorna(giorno, (g) => ({ ...g, minuti: v === "" ? null : Math.max(0, parseInt(v, 10) || 0) }));
+                    }} style={{ width: 90 }} />
+                  <span className="rg-lab">min</span>
+                </div>
+              )}
+            </div>
+
+            <div className="rg-card pad rg-macro" style={{ marginTop: 12 }}>
             <div className="rg-slots">
               {SLOTS.map((s) => {
                 const v = dati.voci?.[s.id];
@@ -1005,43 +1122,15 @@ export default function Registro() {
                 );
               })}
             </div>
-
-            <div className="rg-card pad" style={{ marginTop: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                <span className="rg-lab">Camminata</span>
-                <div className="rg-chips">
-                  <button className={"rg-chip" + (dati.camminata === true ? " on" : "")}
-                    onClick={() => aggiorna(giorno, (g) => ({ ...g, camminata: g.camminata === true ? null : true }))}>Sì</button>
-                  <button className={"rg-chip" + (dati.camminata === false ? " on" : "")}
-                    onClick={() => aggiorna(giorno, (g) => ({ ...g, camminata: g.camminata === false ? null : false, minuti: null }))}>No</button>
-                </div>
-              </div>
-              {dati.camminata === true && (
-                <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 9 }}>
-                  <input className="rg-in ora" type="number" inputMode="numeric" min="0" step="1"
-                    placeholder="minuti" value={dati.minuti ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      aggiorna(giorno, (g) => ({ ...g, minuti: v === "" ? null : Math.max(0, parseInt(v, 10) || 0) }));
-                    }} style={{ width: 90 }} />
-                  <span className="rg-lab">min</span>
-                </div>
-              )}
-              <div style={{ marginTop: 15, display: "flex", gap: 8 }}>
+              <div style={{ marginTop: 15, paddingTop: 14, borderTop: "1px solid var(--line)", display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {(() => { const t = totVF(dati); return [["verdura", t.v], ["frutta", t.f]].map(([n, x]) => (
                   <span key={n} className="rg-voto" style={{ fontSize: 12 }}>{n} {x} / 2-3</span>
                 )); })()}
               </div>
-              <div className="rg-field" style={{ marginTop: 15 }}>
-                <label className="rg-lab" htmlFor="ng">Note del giorno</label>
-                <textarea id="ng" className="rg-ta" rows={2} value={dati.note || ""}
-                  onChange={(e) => { const t = e.target.value; aggiorna(giorno, (g) => ({ ...g, note: t })); }} />
-              </div>
             </div>
 
             <div className="rg-card pad" style={{ marginTop: 12 }}>
-              <span className="rg-lab">Annotazioni del giorno</span>
-              <div className="rg-flags" style={{ marginTop: 12 }}>
+              <div className="rg-flags">
                 <button className={"rg-fl" + (dati.bed ? " on" : "")} aria-pressed={!!dati.bed}
                   onClick={() => aggiorna(giorno, (g) => ({ ...g, bed: !g.bed }))}>BED</button>
                 <button className={"rg-fl" + (dati.vai ? " on" : "")} aria-pressed={!!dati.vai}
@@ -1055,6 +1144,14 @@ export default function Registro() {
                   <span className="rg-hint">Consigliata, non obbligatoria.</span>
                 </div>
               )}
+            </div>
+
+            <div className="rg-card pad" style={{ marginTop: 12 }}>
+              <div className="rg-field">
+                <label className="rg-lab" htmlFor="ng">Note del giorno</label>
+                <textarea id="ng" className="rg-ta" rows={2} value={dati.note || ""}
+                  onChange={(e) => { const t = e.target.value; aggiorna(giorno, (g) => ({ ...g, note: t })); }} />
+              </div>
             </div>
           </>
         )}
