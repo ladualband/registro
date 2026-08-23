@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import { BarcodeFormat } from "@zxing/library";
 
 /* ============================================================
    REGISTRO
@@ -90,16 +88,6 @@ const CSS = `
 .rg-ta { resize:vertical; min-height:44px; line-height:1.4; }
 .rg-in:focus, .rg-ta:focus { outline:none; border-color:var(--acc); }
 .rg-in.ora { font-family:var(--mono); width:130px; }
-
-.rg-scanrow { display:flex; gap:8px; }
-.rg-scanrow .rg-in { flex:1; }
-.rg-scanbtn { flex:none; width:44px; height:44px; border:1px solid var(--line); border-radius:12px;
-  background:var(--sunk); font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--ink2);
-  display:grid; place-items:center; }
-.rg-scanbox { position:relative; border-radius:14px; overflow:hidden; background:#000; aspect-ratio:3/4; max-height:60vh; }
-.rg-video { width:100%; height:100%; display:block; object-fit:cover; }
-.rg-scanwait { position:absolute; left:0; right:0; bottom:14px; text-align:center; font-family:var(--mono);
-  font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink2); }
 
 .rg-pick { display:inline-flex; align-items:center; gap:9px; align-self:flex-start;
   background:var(--sunk); border:1px solid var(--line); border-radius:22px; padding:9px 16px; font-size:14.5px; }
@@ -416,101 +404,11 @@ function Passo({ n, onSet, testo }) {
   );
 }
 
-/* unica chiamata di rete dell'app: traduce un codice a barre nel nome del prodotto via Open Food Facts,
-   inviando solo il codice, niente dati personali. Se fallisce o non trova nulla, resta il codice grezzo. */
-async function cercaProdotto(codice) {
-  try {
-    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${codice}.json?fields=product_name,product_name_it,brands`);
-    const j = await r.json();
-    if (j.status !== 1 || !j.product) return null;
-    const nome = j.product.product_name_it || j.product.product_name || "";
-    return [j.product.brands, nome].filter(Boolean).join(" ").trim() || null;
-  } catch (e) { return null; }
-}
-
-/* ---------------- scanner ---------------- */
-
-function Scanner({ onFound, onClose }) {
-  const videoRef = useRef(null);
-  const [errore, setErrore] = useState("");
-  const [pronta, setPronta] = useState(false);
-
-  /* onFound cambia identità a ogni render del genitore: lo teniamo in un ref così
-     l'effetto qui sotto parte una volta sola e non spegne/riaccende la fotocamera
-     a ogni aggiornamento della pagina (su telefono restava bloccata su nero). */
-  const onFoundRef = useRef(onFound);
-  onFoundRef.current = onFound;
-
-  useEffect(() => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setErrore("Qui il browser non permette l'accesso alla fotocamera (serve una connessione sicura, https).");
-      return;
-    }
-    let attivo = true, controlli = null;
-    const video = videoRef.current;
-    const suVideoPronto = () => { if (attivo) setPronta(true); };
-    video.addEventListener("playing", suVideoPronto);
-    const reader = new BrowserMultiFormatReader();
-    reader.decodeFromConstraints(
-      { video: { facingMode: "environment" } },
-      video,
-      (risultato, _errore, c) => {
-        controlli = c;
-        if (risultato && attivo) { attivo = false; c.stop(); onFoundRef.current(risultato.getText(), risultato.getBarcodeFormat()); }
-      }
-    ).catch((e) => {
-      setErrore(e?.name === "NotAllowedError"
-        ? "Permesso negato. Consenti l'accesso alla fotocamera nelle impostazioni del browser."
-        : "Non riesco ad accedere alla fotocamera.");
-    });
-    return () => { attivo = false; video.removeEventListener("playing", suVideoPronto); if (controlli) controlli.stop(); };
-  }, []);
-
-  return (
-    <div className="rg-ov" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="rg-modal">
-        <div className="rg-eyebrow">
-          <span className="rg-mark">Scansiona</span>
-          <button className="rg-tool" onClick={onClose}>Chiudi</button>
-        </div>
-        {errore ? <span className="rg-hint">{errore}</span> : (
-          <>
-            <div className="rg-scanbox">
-              <video ref={videoRef} className="rg-video" playsInline muted />
-              {!pronta && <span className="rg-scanwait">Attivo la fotocamera…</span>}
-            </div>
-            <span className="rg-hint">Inquadra il codice a barre o il QR del prodotto.</span>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ---------------- editor ---------------- */
 
 function Editor({ slot, b, setB, salva, elimina, esiste, chiudi }) {
   const set = (p) => setB({ ...b, ...p });
   const puo = b.voto != null;
-  const [scanCampo, setScanCampo] = useState(null);
-  const [cercoProdotto, setCercoProdotto] = useState(false);
-
-  const gestisciScan = async (testo, formato) => {
-    const campo = scanCampo;
-    setScanCampo(null);
-    if (!campo) return;
-    let valore = testo;
-    if (formato !== BarcodeFormat.QR_CODE) {
-      setCercoProdotto(true);
-      const nome = await cercaProdotto(testo);
-      setCercoProdotto(false);
-      if (nome) valore = nome;
-    }
-    setB((bb) => {
-      const attuale = bb[campo].testo;
-      return { ...bb, [campo]: { ...bb[campo], testo: attuale ? attuale + " · " + valore : valore } };
-    });
-  };
 
   return (
     <div className="rg-ed">
@@ -524,28 +422,17 @@ function Editor({ slot, b, setB, salva, elimina, esiste, chiudi }) {
         <span className="rg-lab">Carboidrati</span>
         <Scelta titolo="Carboidrati" options={CARBO} value={b.carbo.tipo}
           onChange={(x) => set({ carbo: { ...b.carbo, tipo: x } })} />
-        <div className="rg-scanrow">
-          <input className="rg-in" value={b.carbo.testo} placeholder="Quanto: 4 mestoli, 2 michette, 4 fette"
-            onChange={(e) => set({ carbo: { ...b.carbo, testo: e.target.value } })} />
-          <button type="button" className="rg-scanbtn" aria-label="Scansiona codice a barre o QR per i carboidrati"
-            onClick={() => setScanCampo("carbo")}>SCAN</button>
-        </div>
+        <input className="rg-in" value={b.carbo.testo} placeholder="Quanto: 4 mestoli, 2 michette, 4 fette"
+          onChange={(e) => set({ carbo: { ...b.carbo, testo: e.target.value } })} />
       </div>
 
       <div className="rg-field">
         <span className="rg-lab">Proteine</span>
         <Scelta titolo="Proteine" options={PROT} value={b.prot.tipo}
           onChange={(x) => set({ prot: { ...b.prot, tipo: x } })} />
-        <div className="rg-scanrow">
-          <input className="rg-in" value={b.prot.testo} placeholder="Cosa e quanto"
-            onChange={(e) => set({ prot: { ...b.prot, testo: e.target.value } })} />
-          <button type="button" className="rg-scanbtn" aria-label="Scansiona codice a barre o QR per le proteine"
-            onClick={() => setScanCampo("prot")}>SCAN</button>
-        </div>
+        <input className="rg-in" value={b.prot.testo} placeholder="Cosa e quanto"
+          onChange={(e) => set({ prot: { ...b.prot, testo: e.target.value } })} />
       </div>
-
-      {scanCampo && <Scanner onFound={gestisciScan} onClose={() => setScanCampo(null)} />}
-      {cercoProdotto && <span className="rg-hint">Cerco il prodotto…</span>}
 
       <div className="rg-field">
         <span className="rg-lab">Verdura e frutta <em>(porzioni)</em></span>

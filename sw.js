@@ -1,5 +1,5 @@
 /* Cambia VERSIONE a ogni aggiornamento: obbliga il telefono a ripulire la cache. */
-const VERSIONE = "registro-2026-08-23-1355";
+const VERSIONE = "registro-2026-08-23-1419";
 const FILE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
