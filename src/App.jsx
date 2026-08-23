@@ -96,8 +96,10 @@ const CSS = `
 .rg-scanbtn { flex:none; width:44px; height:44px; border:1px solid var(--line); border-radius:12px;
   background:var(--sunk); font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--ink2);
   display:grid; place-items:center; }
-.rg-scanbox { border-radius:14px; overflow:hidden; background:#000; }
-.rg-video { width:100%; display:block; max-height:60vh; object-fit:cover; }
+.rg-scanbox { position:relative; border-radius:14px; overflow:hidden; background:#000; aspect-ratio:3/4; max-height:60vh; }
+.rg-video { width:100%; height:100%; display:block; object-fit:cover; }
+.rg-scanwait { position:absolute; left:0; right:0; bottom:14px; text-align:center; font-family:var(--mono);
+  font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink2); }
 
 .rg-pick { display:inline-flex; align-items:center; gap:9px; align-self:flex-start;
   background:var(--sunk); border:1px solid var(--line); border-radius:22px; padding:9px 16px; font-size:14.5px; }
@@ -431,20 +433,38 @@ async function cercaProdotto(codice) {
 function Scanner({ onFound, onClose }) {
   const videoRef = useRef(null);
   const [errore, setErrore] = useState("");
+  const [pronta, setPronta] = useState(false);
+
+  /* onFound cambia identità a ogni render del genitore: lo teniamo in un ref così
+     l'effetto qui sotto parte una volta sola e non spegne/riaccende la fotocamera
+     a ogni aggiornamento della pagina (su telefono restava bloccata su nero). */
+  const onFoundRef = useRef(onFound);
+  onFoundRef.current = onFound;
 
   useEffect(() => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrore("Qui il browser non permette l'accesso alla fotocamera (serve una connessione sicura, https).");
+      return;
+    }
     let attivo = true, controlli = null;
+    const video = videoRef.current;
+    const suVideoPronto = () => { if (attivo) setPronta(true); };
+    video.addEventListener("playing", suVideoPronto);
     const reader = new BrowserMultiFormatReader();
     reader.decodeFromConstraints(
       { video: { facingMode: "environment" } },
-      videoRef.current,
+      video,
       (risultato, _errore, c) => {
         controlli = c;
-        if (risultato && attivo) { attivo = false; c.stop(); onFound(risultato.getText(), risultato.getBarcodeFormat()); }
+        if (risultato && attivo) { attivo = false; c.stop(); onFoundRef.current(risultato.getText(), risultato.getBarcodeFormat()); }
       }
-    ).catch(() => setErrore("Non riesco ad accedere alla fotocamera."));
-    return () => { attivo = false; if (controlli) controlli.stop(); };
-  }, [onFound]);
+    ).catch((e) => {
+      setErrore(e?.name === "NotAllowedError"
+        ? "Permesso negato. Consenti l'accesso alla fotocamera nelle impostazioni del browser."
+        : "Non riesco ad accedere alla fotocamera.");
+    });
+    return () => { attivo = false; video.removeEventListener("playing", suVideoPronto); if (controlli) controlli.stop(); };
+  }, []);
 
   return (
     <div className="rg-ov" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -457,6 +477,7 @@ function Scanner({ onFound, onClose }) {
           <>
             <div className="rg-scanbox">
               <video ref={videoRef} className="rg-video" playsInline muted />
+              {!pronta && <span className="rg-scanwait">Attivo la fotocamera…</span>}
             </div>
             <span className="rg-hint">Inquadra il codice a barre o il QR del prodotto.</span>
           </>
