@@ -174,7 +174,7 @@ const CSS = `
 .rg-prow { width:100%; display:flex; gap:12px; align-items:baseline; padding:14px 20px; border-bottom:1px solid var(--line); }
 .rg-prow:last-child { border-bottom:none; }
 .rg-prow.on { background:var(--sunk); }
-.rg-pdate { font-family:var(--mono); font-size:11.5px; color:var(--ink2); width:58px; flex:none; }
+.rg-pdate { font-family:var(--mono); font-size:11.5px; color:var(--ink2); width:78px; flex:none; }
 .rg-pkg { font-family:var(--mono); font-size:14.5px; width:78px; flex:none; }
 .rg-pnote { flex:1; font-size:13px; color:var(--ink2); line-height:1.35; }
 .rg-delta { font-family:var(--mono); font-size:12px; color:var(--ink2); margin-top:6px; }
@@ -538,7 +538,7 @@ function Grafico({ pesate, sel, onSel }) {
   {
     const d = fromIso(pts[0].data); d.setDate(1);
     while (d.getTime() <= t1) {
-      if (d.getTime() >= t0) mesi.push({ t: d.getTime(), nome: MESI[d.getMonth()].slice(0, 3) });
+      if (d.getTime() >= t0) mesi.push({ t: d.getTime(), nome: `${MESI[d.getMonth()].slice(0, 3)} ${d.getFullYear()}` });
       d.setMonth(d.getMonth() + 1);
     }
   }
@@ -1213,7 +1213,7 @@ export default function Registro() {
                 {[...pesate].sort((a, b) => b.data.localeCompare(a.data)).map((p) => (
                   <button key={p.data} className={"rg-prow" + (selPesata === p.data ? " on" : "")}
                     onClick={() => setSelPesata(selPesata === p.data ? null : p.data)}>
-                    <span className="rg-pdate">{fmtBreve(p.data)}</span>
+                    <span className="rg-pdate">{fmtNum(p.data)}</span>
                     <span className="rg-pkg">{kg(p.peso)} kg</span>
                     <span className="rg-pnote">{p.note}</span>
                   </button>
