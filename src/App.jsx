@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 const CSS = `
 .rg {
   --bg:#111A2B; --card:#1B2539; --sunk:#22304A; --ink:#EAEDF2; --ink2:#8E9CB2;
-  --line:#2A3650; --acc:#D9A441; --acc-soft:#2E2A1E; --mark:#D9877A; --mark-soft:#2E2124;
+  --line:#2A3650; --line2:#657899; --acc:#D9A441; --acc-soft:#2E2A1E; --mark:#D9877A; --mark-soft:#2E2124;
   --ok:#63BE8A; --on-acc:#141C2B;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
@@ -25,8 +25,8 @@ const CSS = `
 
 .rg-top { position:sticky; top:0; z-index:20; background:var(--bg); padding:calc(14px + env(safe-area-inset-top)) 0 0; }
 .rg-eyebrow { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
-.rg-mark { font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink2); }
-.rg-tool { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--acc); }
+.rg-mark { font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink2); }
+.rg-tool { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--acc); }
 .rg-tabs { display:flex; gap:20px; margin-top:10px; border-bottom:1px solid var(--line); }
 .rg-tab { padding:8px 0 10px; font-size:15px; color:var(--ink2); position:relative; }
 .rg-tab.on { color:var(--ink); }
@@ -36,7 +36,7 @@ const CSS = `
 .rg-card { background:var(--card); border:1px solid var(--line); border-radius:18px; }
 .rg-card.pad { padding:17px 20px; }
 .rg-card.rg-macro { background:var(--sunk); }
-.rg-lab { font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink2); }
+.rg-lab { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink2); }
 .rg-lab em { font-style:normal; letter-spacing:.02em; text-transform:none; opacity:.85; }
 .rg-week { padding:15px 16px 13px; margin-top:14px; }
 .rg-weekhead { width:100%; display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
@@ -49,7 +49,7 @@ const CSS = `
 .rg-day.futuro { opacity:.32; }
 .rg-bar { height:2px; border-radius:2px; background:var(--line); margin:5px auto 0; width:22px; overflow:hidden; }
 .rg-bar i { display:block; height:100%; background:var(--acc); border-radius:2px; }
-.rg-kgmini { display:block; font-family:var(--mono); font-size:9px; color:var(--acc); margin-top:3px; height:12px; }
+.rg-kgmini { display:block; font-family:var(--mono); font-size:10.5px; color:var(--acc); margin-top:3px; height:12px; }
 .rg-kgmini.vuoto { color:transparent; }
 
 .rg-daytitle { display:flex; align-items:baseline; justify-content:space-between; margin:20px 4px 10px; }
@@ -68,8 +68,8 @@ const CSS = `
 .rg-tick { color:var(--ok); font-size:14px; line-height:1; }
 .rg-tre { margin-top:12px; display:flex; flex-direction:column; gap:6px; }
 .rg-tr { display:flex; gap:10px; align-items:baseline; }
-.rg-tr .k { font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase;
-  color:var(--ink2); width:76px; flex:none; padding-top:2px; }
+.rg-tr .k { font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink2); width:100px; flex:none; padding-top:2px; }
 .rg-tr .v { font-size:14px; line-height:1.35; }
 .rg-tr .v.no { color:var(--ink2); }
 .rg-foot1 { margin-top:13px; padding-top:11px; border-top:1px solid var(--line);
@@ -89,43 +89,38 @@ const CSS = `
 .rg-in:focus, .rg-ta:focus { outline:none; border-color:var(--acc); }
 .rg-in.ora { font-family:var(--mono); width:130px; }
 
-.rg-pick { display:inline-flex; align-items:center; gap:9px; align-self:flex-start;
-  background:var(--sunk); border:1px solid var(--line); border-radius:22px; padding:9px 16px; font-size:14.5px; }
-.rg-pick.on { border-color:var(--acc); color:var(--acc); background:var(--acc-soft); }
-.rg-pick .ch { font-family:var(--mono); font-size:11px; color:var(--ink2); }
-.rg-pick.on .ch { color:var(--acc); }
-.rg-sheetov { position:fixed; inset:0; background:rgba(6,10,18,.72); z-index:60; display:flex;
-  align-items:flex-end; justify-content:center; }
-@media (min-width:600px){ .rg-sheetov { align-items:center; padding:24px; } }
-.rg-sheet { background:var(--card); border:1px solid var(--line); border-radius:22px 22px 0 0; width:100%;
-  max-width:520px; max-height:82vh; overflow:auto; padding:6px 0 18px; }
-@media (min-width:600px){ .rg-sheet { border-radius:20px; } }
-.rg-handle { width:38px; height:4px; border-radius:4px; background:var(--line); margin:8px auto 14px; }
-.rg-sheethead { padding:0 22px 12px; }
-.rg-srow { width:100%; padding:16px 22px; font-size:16px; display:flex; align-items:center;
-  justify-content:space-between; gap:12px; border-top:1px solid var(--line); }
-.rg-srow.on { color:var(--acc); }
-.rg-srow .tick { font-family:var(--mono); font-size:13px; }
+.rg-combo { position:relative; }
+.rg-combo .rg-in.on { border-color:var(--acc); color:var(--acc); }
+.rg-combolist { position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:5;
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  max-height:264px; overflow:auto; }
+.rg-comborow { width:100%; padding:13px 15px; font-size:16px; display:flex; align-items:center;
+  justify-content:space-between; gap:12px; border-top:1px solid var(--line); text-align:left; }
+.rg-comborow:first-child { border-top:none; }
+.rg-comborow.on { color:var(--acc); }
+.rg-comborow .tick { font-family:var(--mono); font-size:13px; }
+.rg-svuoto { color:var(--ink2); justify-content:flex-start; }
 
 .rg-chips { display:flex; gap:7px; flex-wrap:wrap; }
 .rg-chip { padding:8px 15px; border:1px solid var(--line); border-radius:22px; font-size:14px; color:var(--ink2); }
 .rg-chip.on { border-color:var(--acc); color:var(--acc); background:var(--acc-soft); }
-.rg-scale { display:flex; gap:4px; }
-.rg-sc { flex:1; min-width:0; height:38px; border:1px solid var(--line); border-radius:10px; font-family:var(--mono);
-  font-size:12.5px; color:var(--ink2); display:grid; place-items:center; }
+.rg-scale { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+.rg-sc { min-width:0; height:44px; border:1px solid var(--line); border-radius:10px; font-family:var(--mono);
+  font-size:15px; color:var(--ink2); display:grid; place-items:center; }
 .rg-sc.on { background:var(--acc); border-color:var(--acc); color:var(--on-acc); }
-.rg-anchors { display:flex; justify-content:space-between; font-family:var(--mono); font-size:9.5px; color:var(--ink2); }
+.rg-anchors { display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--ink2); }
 .rg-flags { display:flex; gap:9px; }
 .rg-fl { flex:1; padding:13px 0; border:1px solid var(--line); border-radius:14px; font-family:var(--mono);
   font-size:12.5px; letter-spacing:.12em; text-align:center; color:var(--ink2); }
 .rg-fl.on { border-color:var(--mark); color:var(--mark); background:var(--mark-soft); }
 .rg-hint { font-size:12.5px; color:var(--ink2); line-height:1.45; }
-.rg-porz { display:flex; gap:20px; flex-wrap:wrap; }
-.rg-porzuno { display:flex; align-items:center; gap:10px; }
+.rg-porz { display:flex; flex-direction:column; gap:14px; }
+.rg-porzuno { display:flex; align-items:center; justify-content:space-between; width:100%; }
+.rg-passogrp { display:flex; align-items:center; gap:10px; }
 .rg-porzuno span.n { font-family:var(--mono); font-size:15px; min-width:12px; text-align:center; }
-.rg-porzuno span.t { font-size:13.5px; color:var(--ink2); width:54px; }
-.rg-step { width:31px; height:31px; border:1px solid var(--line); border-radius:50%; display:grid; place-items:center;
-  font-family:var(--mono); font-size:15px; line-height:1; color:var(--ink2); background:var(--sunk); }
+.rg-porzuno span.t { font-size:13.5px; color:var(--ink2); }
+.rg-step { width:44px; height:44px; border:1px solid var(--line); border-radius:50%; display:grid; place-items:center;
+  font-family:var(--mono); font-size:17px; line-height:1; color:var(--ink2); background:var(--sunk); }
 .rg-edfoot { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .rg-btn { padding:12px 18px; border-radius:13px; font-size:14px; background:var(--acc); color:var(--on-acc);
   border:1px solid var(--acc); text-align:center; }
@@ -135,18 +130,19 @@ const CSS = `
 .rg-warn { font-size:12.5px; color:var(--ink2); }
 
 .rg-nav { display:flex; align-items:center; justify-content:space-between; margin:16px 4px 12px; }
-.rg-arrow { width:34px; height:34px; display:grid; place-items:center; color:var(--ink2); font-family:var(--mono); }
+.rg-arrow { width:44px; height:44px; display:grid; place-items:center; color:var(--ink2); font-family:var(--mono); }
 .rg-arrow[disabled] { opacity:.25; cursor:default; }
+.rg-back { margin:2px 0 0 -8px; }
 .rg-bigkg { font-family:var(--mono); font-size:30px; color:var(--acc); letter-spacing:-.01em; }
 .rg-sect { margin-top:18px; }
-.rg-secthead { font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase;
+.rg-secthead { font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
   color:var(--ink2); margin:0 6px 8px; }
 .rg-riga { display:flex; align-items:center; gap:10px; padding:12px 20px; border-bottom:1px solid var(--line); }
 .rg-riga:last-child { border-bottom:none; }
 .rg-riga .nm { flex:1; font-size:14.5px; }
 .rg-riga .nm.fuori { color:var(--ink2); }
 .rg-dots { display:flex; gap:3px; }
-.rg-dot { width:8px; height:8px; border-radius:50%; border:1px solid var(--line); }
+.rg-dot { width:8px; height:8px; border-radius:50%; border:1px solid var(--line2); }
 .rg-dot.f { background:var(--acc); border-color:var(--acc); }
 .rg-dot.x { background:var(--mark); border-color:var(--mark); }
 .rg-fq { font-family:var(--mono); font-size:11.5px; color:var(--ink2); width:54px; text-align:right; }
@@ -155,7 +151,7 @@ const CSS = `
 .rg-gd { font-family:var(--mono); font-size:11.5px; color:var(--ink2); width:64px; flex:none; }
 .rg-gd.oggi { color:var(--acc); }
 .rg-pips { display:flex; gap:3px; flex:1; }
-.rg-pip { width:9px; height:9px; border-radius:3px; border:1px solid var(--line); }
+.rg-pip { width:9px; height:9px; border-radius:3px; border:1px solid var(--line2); }
 .rg-pip.f { background:var(--ok); border-color:var(--ok); }
 .rg-gm { font-family:var(--mono); font-size:11px; color:var(--ink2); }
 .rg-ep { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; color:var(--mark);
@@ -183,10 +179,11 @@ const CSS = `
   align-items:flex-end; justify-content:center; }
 @media (min-width:600px){ .rg-ov { align-items:center; padding:24px; } }
 .rg-modal { background:var(--bg); border:1px solid var(--line); width:100%; max-width:600px; max-height:88vh;
-  border-radius:20px 20px 0 0; display:flex; flex-direction:column; padding:18px; gap:12px; }
+  border-radius:20px 20px 0 0; display:flex; flex-direction:column; padding:18px; gap:12px; overflow-y:auto; }
 @media (min-width:600px){ .rg-modal { border-radius:18px; } }
 .rg-out { flex:1; min-height:200px; background:var(--card); border:1px solid var(--line); border-radius:12px;
-  padding:13px; font-family:var(--mono); font-size:11.5px; line-height:1.55; white-space:pre-wrap; overflow:auto; }
+  padding:13px; font-family:var(--mono); font-size:12.5px; line-height:1.55; white-space:pre-wrap; overflow:auto;
+  user-select:text; -webkit-user-select:text; }
 .rg-check { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink2); }
 .rg-footlink { display:block; margin:26px auto 0; font-family:var(--mono); font-size:10.5px;\n  letter-spacing:.1em; text-transform:uppercase; color:var(--ink2); text-align:center; }\n.rg-foot { margin-top:14px; font-size:12px; color:var(--ink2); line-height:1.5; text-align:center; }
 `;
@@ -257,8 +254,8 @@ const oraOra = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(
 const MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
 function labelSettimana(lun) {
   const a = fromIso(lun), b = fromIso(addDays(lun, 6));
-  if (a.getMonth() === b.getMonth()) return `${a.getDate()} / ${b.getDate()} ${MESI[a.getMonth()]}`;
-  return `${a.getDate()} ${MESI[a.getMonth()].slice(0, 3)} / ${b.getDate()} ${MESI[b.getMonth()].slice(0, 3)}`;
+  if (a.getMonth() === b.getMonth()) return `${a.getDate()}-${b.getDate()} ${MESI[a.getMonth()]}`;
+  return `${a.getDate()} ${MESI[a.getMonth()].slice(0, 3)} - ${b.getDate()} ${MESI[b.getMonth()].slice(0, 3)}`;
 }
 
 /* ---------------- storage ---------------- */
@@ -365,31 +362,47 @@ function Chips({ options, value, onChange }) {
   );
 }
 
-function Scelta({ titolo, options, value, onChange }) {
+function Scelta({ options, value, onChange }) {
   const [open, setOpen] = useState(false);
+  const [cerca, setCerca] = useState("");
+  const rif = useRef(null);
   const scelto = options.find((o) => o.id === value);
+  const trovati = options.filter((o) => o.label.toLowerCase().includes(cerca.trim().toLowerCase()));
+
+  useEffect(() => {
+    if (!open) return;
+    const chiudiFuori = (e) => { if (rif.current && !rif.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", chiudiFuori);
+    document.addEventListener("touchstart", chiudiFuori);
+    return () => {
+      document.removeEventListener("mousedown", chiudiFuori);
+      document.removeEventListener("touchstart", chiudiFuori);
+    };
+  }, [open]);
+
+  const scegli = (id) => { onChange(value === id ? null : id); setCerca(""); setOpen(false); };
+
   return (
-    <>
-      <button type="button" className={"rg-pick" + (scelto ? " on" : "")} onClick={() => setOpen(true)}>
-        <span>{scelto ? scelto.label : "Scegli"}</span>
-        <span className="ch">▾</span>
-      </button>
+    <div className="rg-combo" ref={rif}>
+      <input className={"rg-in" + (scelto ? " on" : "")}
+        value={open ? cerca : (scelto ? scelto.label : "")}
+        placeholder="Scegli o scrivi per cercare"
+        onFocus={(e) => { setCerca(""); setOpen(true); e.target.select(); }}
+        onChange={(e) => { setCerca(e.target.value); setOpen(true); }}
+        onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); e.target.blur(); } }} />
       {open && (
-        <div className="rg-sheetov" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-          <div className="rg-sheet">
-            <div className="rg-handle" />
-            <div className="rg-sheethead"><span className="rg-lab">{titolo}</span></div>
-            {options.map((o) => (
-              <button key={o.id} className={"rg-srow" + (value === o.id ? " on" : "")}
-                onClick={() => { onChange(value === o.id ? null : o.id); setOpen(false); }}>
-                <span>{o.label}</span>
-                {value === o.id && <span className="tick">✓</span>}
-              </button>
-            ))}
-          </div>
+        <div className="rg-combolist">
+          {trovati.map((o) => (
+            <button key={o.id} type="button" className={"rg-comborow" + (value === o.id ? " on" : "")}
+              onClick={() => scegli(o.id)}>
+              <span>{o.label}</span>
+              {value === o.id && <span className="tick">✓</span>}
+            </button>
+          ))}
+          {trovati.length === 0 && <div className="rg-comborow rg-svuoto">Nessun risultato</div>}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -397,10 +410,31 @@ function Passo({ n, onSet, testo }) {
   return (
     <div className="rg-porzuno">
       <span className="t">{testo}</span>
-      <button className="rg-step" aria-label={"meno " + testo} onClick={() => onSet(Math.max(0, n - 1))}>-</button>
-      <span className="n">{n}</span>
-      <button className="rg-step" aria-label={"più " + testo} onClick={() => onSet(Math.min(6, n + 1))}>+</button>
+      <div className="rg-passogrp">
+        <button className="rg-step" aria-label={"meno " + testo} onClick={() => onSet(Math.max(0, n - 1))}>-</button>
+        <span className="n">{n}</span>
+        <button className="rg-step" aria-label={"più " + testo} onClick={() => onSet(Math.min(6, n + 1))}>+</button>
+      </div>
     </div>
+  );
+}
+
+function BottoneDue({ className, etichetta, conferma, onConferma }) {
+  const [attesa, setAttesa] = useState(false);
+  const timer = useRef(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const tocca = () => {
+    if (!attesa) {
+      setAttesa(true);
+      timer.current = setTimeout(() => setAttesa(false), 4000);
+      return;
+    }
+    clearTimeout(timer.current);
+    setAttesa(false);
+    onConferma();
+  };
+  return (
+    <button type="button" className={className} onClick={tocca}>{attesa ? conferma : etichetta}</button>
   );
 }
 
@@ -420,7 +454,7 @@ function Editor({ slot, b, setB, salva, elimina, esiste, chiudi }) {
 
       <div className="rg-field">
         <span className="rg-lab">Carboidrati</span>
-        <Scelta titolo="Carboidrati" options={CARBO} value={b.carbo.tipo}
+        <Scelta options={CARBO} value={b.carbo.tipo}
           onChange={(x) => set({ carbo: { ...b.carbo, tipo: x } })} />
         <input className="rg-in" value={b.carbo.testo} placeholder="Quanto: 4 mestoli, 2 michette, 4 fette"
           onChange={(e) => set({ carbo: { ...b.carbo, testo: e.target.value } })} />
@@ -428,7 +462,7 @@ function Editor({ slot, b, setB, salva, elimina, esiste, chiudi }) {
 
       <div className="rg-field">
         <span className="rg-lab">Proteine</span>
-        <Scelta titolo="Proteine" options={PROT} value={b.prot.tipo}
+        <Scelta options={PROT} value={b.prot.tipo}
           onChange={(x) => set({ prot: { ...b.prot, tipo: x } })} />
         <input className="rg-in" value={b.prot.testo} placeholder="Cosa e quanto"
           onChange={(e) => set({ prot: { ...b.prot, testo: e.target.value } })} />
@@ -478,7 +512,7 @@ function Editor({ slot, b, setB, salva, elimina, esiste, chiudi }) {
       <div className="rg-edfoot">
         <span className="rg-warn">{puo ? "" : "Manca il voto."}</span>
         <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-          {esiste && <button className="rg-btn danger" onClick={elimina}>Elimina</button>}
+          {esiste && <BottoneDue className="rg-btn danger" etichetta="Elimina" conferma="Confermi?" onConferma={elimina} />}
           <button className="rg-btn ghost" onClick={chiudi}>Chiudi</button>
           <button className="rg-btn" disabled={!puo} onClick={salva}>Salva</button>
         </div>
@@ -564,7 +598,7 @@ function Grafico({ pesate, sel, onSel }) {
             {mesi.map((m) => (
               <g key={m.t}>
                 <line x1={X(m.t)} x2={X(m.t)} y1={PT - 10} y2={H - PB} stroke="var(--line)" strokeWidth="1" />
-                <text x={X(m.t) + 5} y={PT - 11} fontSize="9" fontFamily="var(--mono)" fill="var(--ink2)">{m.nome}</text>
+                <text x={X(m.t) + 5} y={PT - 11} fontSize="11" fontFamily="var(--mono)" fill="var(--ink2)">{m.nome}</text>
               </g>
             ))}
             {pts.slice(1).map((b, i) => (
@@ -594,7 +628,7 @@ function Grafico({ pesate, sel, onSel }) {
         <div className="rg-yaxis" style={{ width: GUT, height: H }}>
           <svg width={GUT} height={H}>
             {righe.map((v) => (
-              <text key={v} x={GUT - 8} y={Y(v) + 3.5} textAnchor="end" fontSize="10"
+              <text key={v} x={GUT - 8} y={Y(v) + 3.5} textAnchor="end" fontSize="11"
                 fontFamily="var(--mono)" fill="var(--ink2)">{fmtRiga(v)}</text>
             ))}
           </svg>
@@ -621,6 +655,8 @@ export default function Registro() {
   const [datiOpen, setDatiOpen] = useState(false);
   const [datiTesto, setDatiTesto] = useState("");
   const [datiMsg, setDatiMsg] = useState("");
+  const [backupTesto, setBackupTesto] = useState("");
+  const [backupMsg, setBackupMsg] = useState("");
 
   const sRef = useRef({});
   const pRef = useRef([]);
@@ -873,28 +909,60 @@ export default function Registro() {
     setDatiTesto(""); setDatiMsg(`${nuove.length} pesate importate.`);
   };
 
-  const faiBackup = async () => {
+  const creaBackup = async () => {
     const tutto = {};
     const r = await store.list("");
     for (const k of r.keys) { try { tutto[k] = (await store.get(k)).value; } catch (e) { /* salta */ } }
-    setDatiTesto(JSON.stringify(tutto));
-    setDatiMsg("Backup pronto qui sotto. Copialo e mettilo al sicuro.");
-    try { await navigator.clipboard.writeText(JSON.stringify(tutto)); setDatiMsg("Backup copiato negli appunti."); }
+    setBackupTesto(JSON.stringify(tutto));
+    setBackupMsg("Backup pronto qui sotto. Copialo e mettilo al sicuro.");
+    try { await navigator.clipboard.writeText(JSON.stringify(tutto)); setBackupMsg("Backup copiato negli appunti."); }
     catch (e) { /* resta da copiare a mano */ }
   };
 
-  const ripristina = async () => {
+  const backupInfo = useMemo(() => {
+    if (!backupTesto.trim()) return null;
     let dati;
-    try { dati = JSON.parse(datiTesto); } catch (e) { setDatiMsg("Questo non è un backup valido."); return; }
-    if (!dati || typeof dati !== "object") { setDatiMsg("Questo non è un backup valido."); return; }
+    try { dati = JSON.parse(backupTesto); } catch (e) { return { valido: false }; }
+    if (!dati || typeof dati !== "object" || Array.isArray(dati)) return { valido: false };
+    const chiavi = Object.keys(dati);
+    const riconosciuta = chiavi.some((k) => k === "pesate" || k.startsWith("settimana:"));
+    if (!riconosciuta) return { valido: false };
+    return { valido: true, chiavi: chiavi.length, settimane: chiavi.filter((k) => k.startsWith("settimana:")).length };
+  }, [backupTesto]);
+
+  const ripristina = async () => {
+    if (!backupInfo?.valido) { setBackupMsg("Questo non è un backup valido."); return; }
+    const dati = JSON.parse(backupTesto);
     for (const [k, v] of Object.entries(dati)) { try { await store.set(k, String(v)); } catch (e) { /* salta */ } }
-    setDatiMsg("Ripristinato. Riapro.");
+    setBackupMsg("Ripristinato. Riapro.");
     setTimeout(() => window.location.reload(), 700);
   };
 
   const copia = async () => {
     try { await navigator.clipboard.writeText(espTesto); segnala("copiato"); }
     catch (e) { segnala("copia a mano"); }
+  };
+
+  const condividi = async () => {
+    try { await navigator.share({ title: "Registro", text: espTesto }); }
+    catch (e) { /* annullato o non riuscito, nessun messaggio */ }
+  };
+
+  const settSuccBloccata = addDays(lun, 7) > oggi;
+  const settimanaPrec = () => setGiorno(addDays(giorno, -7));
+  const settimanaSucc = () => {
+    if (settSuccBloccata) return;
+    setGiorno(addDays(giorno, 7) > oggi ? oggi : addDays(giorno, 7));
+  };
+  const swipeRif = useRef(null);
+  const swipeInizio = (e) => { const t = e.touches[0]; swipeRif.current = { x: t.clientX, y: t.clientY }; };
+  const swipeFine = (e) => {
+    const inizio = swipeRif.current; swipeRif.current = null;
+    if (!inizio) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - inizio.x, dy = t.clientY - inizio.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0) settimanaSucc(); else settimanaPrec();
   };
 
   /* ---------------- render ---------------- */
@@ -924,7 +992,7 @@ export default function Registro() {
 
         {tab === "diario" && vista === "giorno" && (
           <>
-            <div className="rg-card rg-week">
+            <div className="rg-card rg-week" onTouchStart={swipeInizio} onTouchEnd={swipeFine}>
               <button className="rg-weekhead" onClick={() => setVista("riepilogo")}>
                 <span className="rg-lab">{labelSettimana(lun)}</span>
                 <span className="rg-lab" style={{ color: "var(--acc)" }}>Riepilogo ›</span>
@@ -1065,12 +1133,13 @@ export default function Registro() {
         )}
 
         {tab === "diario" && vista === "riepilogo" && (
-          <>
+          <div onTouchStart={swipeInizio} onTouchEnd={swipeFine}>
+            <button className="rg-arrow rg-back" onClick={() => setVista("giorno")} aria-label="Torna alla compilazione">‹</button>
             <div className="rg-nav">
-              <button className="rg-arrow" onClick={() => setGiorno(addDays(giorno, -7))} aria-label="Settimana precedente">‹</button>
+              <button className="rg-arrow" onClick={settimanaPrec} aria-label="Settimana precedente">‹</button>
               <span style={{ fontSize: 16 }}>{labelSettimana(lun)}</span>
-              <button className="rg-arrow" disabled={addDays(lun, 7) > oggi}
-                onClick={() => setGiorno(addDays(giorno, 7) > oggi ? oggi : addDays(giorno, 7))}
+              <button className="rg-arrow" disabled={settSuccBloccata}
+                onClick={settimanaSucc}
                 aria-label="Settimana successiva">›</button>
             </div>
 
@@ -1148,11 +1217,7 @@ export default function Registro() {
                 Giorni con tutte e cinque le voci: {conteggi.completi} su 7.
               </div>
             </div>
-
-            <div style={{ marginTop: 18 }}>
-              <button className="rg-btn ghost" style={{ width: "100%" }} onClick={() => setVista("giorno")}>Torna al giorno</button>
-            </div>
-          </>
+          </div>
         )}
 
         {tab === "peso" && (
@@ -1189,7 +1254,7 @@ export default function Registro() {
               const p = ord[i], prec = i > 0 ? ord[i - 1] : null;
               const d = prec ? p.peso - prec.peso : null;
               return (
-                <div className="rg-card pad" style={{ marginTop: 12 }}>
+                <div className="rg-card pad" style={{ marginTop: 12 }} key={p.data}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <span className="rg-bigkg" style={{ fontSize: 24 }}>{kg(p.peso)} kg</span>
                     <span className="rg-lab">{fmtNum(p.data)}</span>
@@ -1201,7 +1266,7 @@ export default function Registro() {
                   <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
                     <button className="rg-btn ghost" onClick={() => { setGiorno(p.data); setTab("diario"); setVista("riepilogo"); }}>Vai alla settimana</button>
                     <button className="rg-btn ghost" onClick={() => { setPData(p.data); setPPeso(kg(p.peso)); setPNota(p.note || ""); }}>Modifica</button>
-                    <button className="rg-btn danger" onClick={() => eliminaPesata(p.data)}>Elimina</button>
+                    <BottoneDue className="rg-btn danger" etichetta="Elimina" conferma="Confermi?" onConferma={() => eliminaPesata(p.data)} />
                   </div>
                 </div>
               );
@@ -1224,7 +1289,7 @@ export default function Registro() {
           </>
         )}
 
-        <button className="rg-footlink" onClick={() => { setDatiOpen(true); setDatiTesto(""); setDatiMsg(""); }}>
+        <button className="rg-footlink" onClick={() => { setDatiOpen(true); setDatiTesto(""); setDatiMsg(""); setBackupTesto(""); setBackupMsg(""); }}>
           Dati e backup
         </button>
         <div className="rg-foot">I dati restano su questo telefono.<br />Fai un backup ogni tanto.</div>
@@ -1237,19 +1302,32 @@ export default function Registro() {
               <span className="rg-mark">Dati</span>
               <button className="rg-tool" onClick={() => setDatiOpen(false)}>Chiudi</button>
             </div>
-            <span className="rg-hint">
-              Per importare le pesate: una per riga, data e peso.
-              Vanno bene sia 19/08/2026 124 sia 2026-08-19 124,0.
-              Se una data c'è già, viene sostituita.
-            </span>
-            <textarea className="rg-ta" style={{ minHeight: 150, fontFamily: "var(--mono)", fontSize: 12.5 }}
-              value={datiTesto} placeholder={"19/08/2026 124\n12/08/2026 121,45"}
-              onChange={(e) => { setDatiTesto(e.target.value); setDatiMsg(""); }} />
-            {datiMsg && <span className="rg-hint" style={{ color: "var(--acc)" }}>{datiMsg}</span>}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button className="rg-btn" onClick={importaPesate}>Importa pesate</button>
-              <button className="rg-btn ghost" onClick={faiBackup}>Fai un backup</button>
-              <button className="rg-btn ghost" onClick={ripristina}>Ripristina</button>
+            <div className="rg-field">
+              <span className="rg-secthead" style={{ margin: 0 }}>Importa pesate</span>
+              <span className="rg-hint">
+                Una per riga, data e peso. Vanno bene sia 19/08/2026 124 sia 2026-08-19 124,0.
+                Se una data c'è già, viene sostituita.
+              </span>
+              <textarea className="rg-ta" style={{ minHeight: 120, fontFamily: "var(--mono)", fontSize: 12.5 }}
+                value={datiTesto} placeholder={"19/08/2026 124\n12/08/2026 121,45"}
+                onChange={(e) => { setDatiTesto(e.target.value); setDatiMsg(""); }} />
+              {datiMsg && <span className="rg-hint" style={{ color: "var(--acc)" }}>{datiMsg}</span>}
+              <button className="rg-btn" style={{ alignSelf: "flex-start" }} onClick={importaPesate}>Importa pesate</button>
+            </div>
+
+            <div className="rg-field">
+              <span className="rg-secthead" style={{ margin: 0 }}>Backup e ripristino</span>
+              <textarea className="rg-ta" style={{ minHeight: 120, fontFamily: "var(--mono)", fontSize: 12.5 }}
+                value={backupTesto} placeholder="Incolla qui un backup, oppure creane uno con il tasto sotto."
+                onChange={(e) => { setBackupTesto(e.target.value); setBackupMsg(""); }} />
+              {backupInfo && (backupInfo.valido
+                ? <span className="rg-hint">{backupInfo.chiavi} chiavi, {backupInfo.settimane} settimane trovate.</span>
+                : <span className="rg-hint" style={{ color: "var(--mark)" }}>Questo non è un backup valido.</span>)}
+              {backupMsg && <span className="rg-hint" style={{ color: "var(--acc)" }}>{backupMsg}</span>}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button className="rg-btn ghost" onClick={creaBackup}>Crea backup</button>
+                <BottoneDue className="rg-btn ghost" etichetta="Ripristina" conferma="Sovrascrivo tutto?" onConferma={ripristina} />
+              </div>
             </div>
           </div>
         </div>
@@ -1274,7 +1352,11 @@ export default function Registro() {
               Includi le annotazioni BED e VAI
             </label>
             <div className="rg-out">{espCarico ? "Raccolgo i dati." : espTesto}</div>
-            <button className="rg-btn" onClick={copia}>Copia il testo</button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="rg-btn" onClick={copia}>Copia il testo</button>
+              {typeof navigator !== "undefined" && navigator.share &&
+                <button className="rg-btn ghost" onClick={condividi}>Condividi</button>}
+            </div>
           </div>
         </div>
       )}
