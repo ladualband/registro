@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 
 /* ============================================================
    REGISTRO
@@ -40,7 +40,9 @@ const CSS = `
 .rg-lab em { font-style:normal; letter-spacing:.02em; text-transform:none; opacity:.85; }
 .rg-week { padding:15px 16px 13px; margin-top:14px; }
 .rg-weekhead { width:100%; display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.rg-days { display:flex; justify-content:space-between; }
+.rg-daysport { overflow:hidden; touch-action:pan-y; }
+.rg-daystrack { display:flex; }
+.rg-days { display:flex; justify-content:space-between; flex:0 0 auto; }
 .rg-day { width:40px; text-align:center; }
 .rg-dcircle { width:33px; height:33px; border-radius:50%; margin:0 auto; display:grid; place-items:center;
   font-size:13.5px; color:var(--ink2); border:1px solid var(--line); }
@@ -638,6 +640,98 @@ function Grafico({ pesate, sel, onSel }) {
   );
 }
 
+/* striscia dei pallini della settimana: segue il dito, cambia settimana solo a rilascio oltre soglia */
+function RigaSettimane({ lun, oggi, giorno, settimane, pesate, onSeleziona, onSposta, bloccataAvanti }) {
+  const portRef = useRef(null);
+  const [w, setW] = useState(0);
+  const [dx, setDx] = useState(0);
+  const [scatto, setScatto] = useState(false);
+  const rif = useRef(null);
+  const SOGLIA = 60;
+
+  useLayoutEffect(() => {
+    const misura = () => setW(portRef.current?.clientWidth || 0);
+    misura();
+    window.addEventListener("resize", misura);
+    return () => window.removeEventListener("resize", misura);
+  }, []);
+
+  const inizio = (e) => {
+    const t = e.touches[0];
+    rif.current = { x0: t.clientX, y0: t.clientY, asse: null };
+    setScatto(false);
+  };
+
+  const muovi = (e) => {
+    const r = rif.current;
+    if (!r) return;
+    const t = e.touches[0];
+    const ddx = t.clientX - r.x0, ddy = t.clientY - r.y0;
+    if (!r.asse) {
+      if (Math.abs(ddx) < 8 && Math.abs(ddy) < 8) return;
+      r.asse = Math.abs(ddx) > Math.abs(ddy) * 1.3 ? "x" : "y";
+    }
+    if (r.asse !== "x") return;
+    e.preventDefault();
+    setDx(ddx < 0 && bloccataAvanti ? ddx / 3 : ddx);
+  };
+
+  const fine = () => {
+    const r = rif.current;
+    const asseX = r && r.asse === "x";
+    rif.current = null;
+    if (!asseX) { setDx(0); return; }
+    const avanti = dx < 0;
+    const oltre = Math.abs(dx) > SOGLIA;
+    setScatto(true);
+    setDx(oltre && !(avanti && bloccataAvanti) ? (avanti ? -w : w) : 0);
+  };
+
+  const fineAnimazione = () => {
+    if (!scatto) return;
+    setScatto(false);
+    if (w > 0 && Math.abs(dx) >= w - 1) onSposta(dx < 0 ? 1 : -1);
+    setDx(0);
+  };
+
+  const riga = (lunX) => {
+    const s = settimane[lunX] || { giorni: {} };
+    const giorniSett = Array.from({ length: 7 }, (_, i) => addDays(lunX, i));
+    return (
+      <div className="rg-days" style={{ width: w }} key={lunX}>
+        {giorniSett.map((d, i) => {
+          const g = s.giorni?.[d];
+          const n = compilate(g);
+          const pieno = giornoPieno(g);
+          const pw = pesate.find((p) => p.data === d);
+          const futuro = d > oggi;
+          return (
+            <button key={d} className={"rg-day" + (d === giorno ? " sel" : "") + (futuro ? " futuro" : "") + (pieno ? " pieno" : "")}
+              disabled={futuro} onClick={() => onSeleziona(d)} aria-label={fmtLungo(d)}>
+              <span className="rg-dcircle">{GG1[i]}</span>
+              <span className="rg-bar"><i style={{ width: (pieno ? 100 : (n / 5) * 100) + "%" }} /></span>
+              <span className={"rg-kgmini" + (pw ? "" : " vuoto")}>{pw ? kg(pw.peso) : "."}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="rg-daysport" ref={portRef} onTouchStart={inizio} onTouchMove={muovi} onTouchEnd={fine} onTouchCancel={fine}>
+      <div className="rg-daystrack" style={{
+        width: w * 3, transform: `translate3d(${-w + dx}px,0,0)`,
+        transition: scatto ? "transform .22s ease" : "none",
+      }} onTransitionEnd={fineAnimazione}>
+        {riga(addDays(lun, -7))}
+        {riga(lun)}
+        {riga(addDays(lun, 7))}
+      </div>
+    </div>
+  );
+}
+
 /* ============================================================ */
 
 export default function Registro() {
@@ -698,6 +792,11 @@ export default function Registro() {
   }, [caricaSettimana]);
 
   useEffect(() => { if (pronto) caricaSettimana(lun); }, [lun, pronto, caricaSettimana]);
+  useEffect(() => {
+    if (!pronto) return;
+    caricaSettimana(addDays(lun, -7));
+    caricaSettimana(addDays(lun, 7));
+  }, [lun, pronto, caricaSettimana]);
 
   const sett = settimane[lun] || { giorni: {} };
   const dati = sett.giorni?.[giorno] || vuotoGiorno();
@@ -992,28 +1091,14 @@ export default function Registro() {
 
         {tab === "diario" && vista === "giorno" && (
           <>
-            <div className="rg-card rg-week" onTouchStart={swipeInizio} onTouchEnd={swipeFine}>
+            <div className="rg-card rg-week">
               <button className="rg-weekhead" onClick={() => setVista("riepilogo")}>
                 <span className="rg-lab">{labelSettimana(lun)}</span>
                 <span className="rg-lab" style={{ color: "var(--acc)" }}>Riepilogo ›</span>
               </button>
-              <div className="rg-days">
-                {giorniSett.map((d, i) => {
-                  const g = sett.giorni?.[d];
-                  const n = compilate(g);
-                  const pieno = giornoPieno(g);
-                  const pw = pesate.find((p) => p.data === d);
-                  const futuro = d > oggi;
-                  return (
-                    <button key={d} className={"rg-day" + (d === giorno ? " sel" : "") + (futuro ? " futuro" : "") + (pieno ? " pieno" : "")}
-                      disabled={futuro} onClick={() => setGiorno(d)} aria-label={fmtLungo(d)}>
-                      <span className="rg-dcircle">{GG1[i]}</span>
-                      <span className="rg-bar"><i style={{ width: (pieno ? 100 : (n / 5) * 100) + "%" }} /></span>
-                      <span className={"rg-kgmini" + (pw ? "" : " vuoto")}>{pw ? kg(pw.peso) : "."}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <RigaSettimane lun={lun} oggi={oggi} giorno={giorno} settimane={settimane} pesate={pesate}
+                onSeleziona={setGiorno} onSposta={(dir) => (dir > 0 ? settimanaSucc() : settimanaPrec())}
+                bloccataAvanti={settSuccBloccata} />
             </div>
 
             <div className="rg-daytitle">
